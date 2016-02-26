@@ -1,35 +1,35 @@
----
-title: iOS强制去警告
-date: 2016-02-24 12:13:41
+title: iOS清除代码警告
+date: 2016-02-24 12:15:19
+tags:
 ---
 项目中存在很多黄色感叹号时，首先视觉上就觉得不舒服，并且有些警告可能产生Bug。当有些警告不想看到黄色感叹号时，可以采取一些特殊的手段强制消除警告！
 
-
-```objectivec?linenums
+### 去警告基本语法
+```objectivec
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "警告名称"
 //被夹在这中间的代码针对于此警告都会无视并且不显示出来
 #pragma clang diagnostic pop
 ```
 
-**这段代码的基本流程:**
+**这段代码的基本流程:**    
  1. push 当前警告入栈
  2. 忽略我们要消除的警告
  3. 执行会产生警告的代码
  4. pop 警告出栈——恢复之前的状态
 
 
+
 例如：
-```objectivec?linenums
+```objectivec
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
     return [@"contentText" sizeWithFont:[UIFont systemFontOfSize:14] constrainedToSize:CGSizeMake(320, CGFLOAT_MAX) lineBreakMode:0];
 #pragma clang diagnostic pop
 ```
 
-
-**常见编译警告类型**
-```html?linenums
+### 常见编译警告类型			
+```objectivec
 -Wincompatible-pointer-types    指针类型不匹配
 -Wincomplete-implementation     没有实现已声明的方法
 -Wprotocol                      没有实现协议的方法
@@ -37,18 +37,80 @@ date: 2016-02-24 12:13:41
 -Warc-performSelector-leaks     使用performSelector可能会出现泄漏(该警告在xcode4.3.1中没出现过,网上流传说4.2使用performselector:withObject: 就会得到该警告)
 -Wdeprecated-declarations       使用了不推荐使用的方法(如[UILabel setFont:(UIFont*)])
 -Wunused-variable               含有没有被使用的变量
+-Wundeclared-selector		    未定义selector方法
 ```
 
-**去警告宏定义**
-```obj
-\#define SuppressPerformSelectorLeakWarning(Stuff)
+
+### 去警告宏定义
+如果需要忽略的警告有很多，可以定义一个宏，简化使用
+
+```objectivec
+//忽略PerformSelector警告
+#define SUPPRESS_PerformSelectorLeak_WARNING(Stuff) \
 do { \
-    _Pragma("clang diagnostic push") \
-    _Pragma("clang diagnostic ignored \"-Warc-performSelector-leaks\"")
-    Stuff; \
-    _Pragma("clang diagnostic pop") \
+_Pragma("clang diagnostic push") \
+_Pragma("clang diagnostic ignored \"-Warc-performSelector-leaks\"") \
+Stuff; \
+_Pragma("clang diagnostic pop") \
 } while (0)
+
+//忽略未定义方法警告
+#define  SUPPRESS_Undeclaredselector_WARNING(Stuff) \
+do { \
+_Pragma("clang diagnostic push") \
+_Pragma("clang diagnostic ignored \"-Wundeclared-selector\"") \
+Stuff; \
+_Pragma("clang diagnostic pop") \
+} while (0)
+
+//忽略过期API警告
+#define SUPPRESS_DEPRECATED_WARNING(Stuff) \
+do { \
+_Pragma("clang diagnostic push") \
+_Pragma("clang diagnostic ignored \"-Wdeprecated-declarations\"") \
+Stuff; \
+_Pragma("clang diagnostic pop") \
+} while (0
+```
+###获取警告类型
+![警告][1]
+  -W    是前缀,表示打开这种类型的警告，默认开启
+  -Wno- 关闭某种类型的警告
+关闭警告如：-Wno-unused-variable、-Wno-shorten-64-to-32
+
+###关闭工程中指定类型的警告
+一、屏蔽项目指定文件指定类型警告
+![enter description here][2]
+
+二、屏蔽工程指定类型警告
+Taget- buld Setting -other warning Flags
+![enter description here][3]
+
+重新编译,文件中的指定类型警告全部消失了!!!!
+
+###屏蔽cocoapod引入的第三方警告
+对于我们使用cocoapod引入的第三方,我们可以在podfile文件中增加一句`inhibit_all_warnings!` 来屏蔽pod的工程的任何警告。
+```objectivec
+# platform :ios, '8.0'
+# Uncomment this line if you're using Swift
+# use_frameworks!
+
+inhibit_all_warnings!
+target 'RuntimeLearn' do
+pod 'UITextView+Placeholder', '~> 1.1.1'
+pod 'MJRefresh', '~> 3.1.0'
+#也可以单独设置打开编译警告就好了
+pod 'Alamofire', '~> 3.0.0-beta.3', :inhibit_warnings => true
+
+end
 ```
 
-**阅读更多**
+    PS：切记，警告屏蔽只针对于无关紧要的警告，有些警告是代码编写本身有误，可能
+    引起Bug，需要及时修复。屏蔽掉无关紧要的Bug可以让我们快速找到需要修复的警告，
+    让工程更整洁，让App更稳定。
+
+### 阅读更多
 警告类型大全：http://fuckingclangwarnings.com/
+  [1]: http://7xr7vj.com1.z0.glb.clouddn.com/findwarning.png
+  [2]: http://7xr7vj.com1.z0.glb.clouddn.com/tmp368f65b0.png
+  [3]:http://7xr7vj.com1.z0.glb.clouddn.com/tmp368f65b0.png
