@@ -1,0 +1,91 @@
+---
+title: 2016-3-18未命名文件 
+tags: 新建,模板,小书匠
+grammar_cjkRuby: true
+---
+
+
+## 通过canOpenURL查询URL Schemes
+
+苹果继续高优先级的保护用户的隐私,所以应该不足为奇iOS9带来了新的安全和隐私的措施。 其中一个措施就是防止滥用canOpenURL发现用户安装的应用程序。
+查询一个URL方案
+
+它一直可以打开外部应用程序使用openURL:方法。 通常你第一次查询应用程序的URL方案canOpenURL:然后用openURL:你打开它。 一个典型的objective - c代码片段检测方案:
+
+```objectivec
+// Expects the URL of the scheme e.g. "fb://"
+- (BOOL)schemeAvailable:(NSString *)scheme {
+  UIApplication *application = [UIApplication sharedApplication];
+  NSURL *URL = [NSURL URLWithString:scheme];
+  return [application canOpenURL:URL];
+}
+//swift
+func schemeAvailable(scheme: String) -> Bool {
+    if let url = NSURL.init(string: scheme) {
+        return UIApplication.sharedApplication().canOpenURL(url)
+    }
+    return false
+}
+```
+
+查询Facebook和Twitter的应用程序:
+```objectivec
+// Objective-C
+BOOL fbInstalled = [self schemeAvailable:@"fb://"];
+BOOL twInstalled = [self schemeAvailable:@"twitter://"];
+
+// Swift
+let fbInstalled = schemeAvailable("fb://")
+let twInstalled = schemeAvailable("twitter://")
+```
+
+
+这是有用的,但是开发人员使用该机制,包括Twitter和Facebook 发现应用程序的列表 安装在一个设备,这样他们就可以交付定制contenta。 苹果公司决定这是一个违反隐私所以在iOS 9限制的URL的查询计划。 如果你建立和链接对iOS SDK 9需要白名单计划你的应用程序将查询。 什么是重要的理解是,这一政策也会影响旧应用程序尚未重建的iOS SDK。 欢喜看看两个场景:
+一个iOS 8 iOS应用程序运行在9
+
+模拟一个iOS设备8 iOS应用程序运行在一个9我建立了一个测试程序与Xcode 6使用iOS 8.4 SDK。 然后我9 iOS设备上运行,只有Twitter应用程序安装。 正如预期的查询返回的facebook计划没有和Twitter计划是的。 还有一个警告消息失败的设备日志查询:
+
+CanOpen[2255:1002610] -canOpenURL: failed for URL:
+ "fb://" - error: "(null)"
+
+这意味着,这是好的 大多数 应用程序依赖于查询开放计划将继续在iOS 9日修改的。 我说 大多数 因为有一个重要的限制对iOS应用程序无关9。 当您运行这些应用程序iOS 9是有限度的50个不同的计划。
+
+如果你超过50个不同方案的限制canOpenURL将返回。 不同方案的计算应用程序可以查询不重置甚至重新启动设备。
+
+为了测试这个我查询了100种不同的方案,看看会发生什么:
+
+for (int scheme = 0; scheme < 100; scheme++) {
+    [self schemeAvailable:[NSString stringWithFormat:@"%02d://",scheme]];
+}
+
+最初几个查询结果如预期表明该方案不支持任何安装程序:
+
+-canOpenURL: failed for URL: "00://" - error: "(null)"
+-canOpenURL: failed for URL: "01://" - error: "(null)"
+
+一旦我们超过50个不同的方案(包括facebook和twitter已经查询计划)错误消息的变化:
+
+-canOpenURL: failed for URL: "48://" - error:
+ "This app has exceeded the number of allowed scheme queries"
+
+在这一点上,是不可能查询的新方案。 你仍然可以查询的facebook和twitter计划是50允许计划的一部分,但是如果你需要查询别的你运气不好。
+iOS应用程序与9
+
+切换到Xcode 7构建和链接我的测试代码对iOS SDK 9变化的东西。 facebook和twitter的查询计划现在没有权限错误:
+
+-canOpenURL: failed for URL: "fb://" - error:
+ "This app is not allowed to query for scheme fb"
+-canOpenURL: failed for URL: "twitter://" - error:
+ "This app is not allowed to query for scheme twitter"
+
+在iOS 9必须白名单的任何URL方案应用程序想要查询信息。 plist LSApplicationQueriesSchemes下键(一个字符串数组):
+
+LSApplicationQueriesSchemes
+
+计划包括在信息。 plist一切正常。 当你链接对iOS 9并不局限于50个不同的计划 你只需要声明在Info.plist您所需要的。 似乎没有限制多少计划可以包括但我希望App Store审查小组的提问,如果他们认为你是滥用的机制。
+
+注意,这个机制只适用于canOpenURL而不是openURL。 你做 不 需要有一个计划中列出的信息。 plist openURL能够打开它。
+进一步的阅读
+
+WWDC 2015会话703隐私和应用程序
+
